@@ -1,20 +1,24 @@
 import pandas as pd
 import joblib
 import os
+import streamlit as st
 from openai import OpenAI
 
 # =====================================================
-# 🔐 Configure Hugging Face API
+# 🔐 Configure Hugging Face API (Using Streamlit Secrets)
 # =====================================================
 
-HF_TOKEN = os.getenv("HF_TOKEN")
+hf_client = None
 
-if HF_TOKEN:
+try:
+    HF_TOKEN = st.secrets["HF_TOKEN"]
+
     hf_client = OpenAI(
         base_url="https://router.huggingface.co/v1",
         api_key=HF_TOKEN,
     )
-else:
+
+except Exception:
     hf_client = None
 
 
