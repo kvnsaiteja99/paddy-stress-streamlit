@@ -1,28 +1,38 @@
 import pandas as pd
 import joblib
 import os
-import google.generativeai as genai
+from openai import OpenAI
 
 # =====================================================
-# Configure Google Gemini API
+# 🔐 Configure Hugging Face API
 # =====================================================
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if HF_TOKEN:
+    hf_client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=HF_TOKEN,
+    )
+else:
+    hf_client = None
+
 
 # =====================================================
-# Load ML model files
+# 📦 Load ML model files
 # =====================================================
+
 BASE_DIR = os.path.dirname(__file__)
 
 model = joblib.load(os.path.join(BASE_DIR, "stress_model.pkl"))
 le = joblib.load(os.path.join(BASE_DIR, "label_encoder.pkl"))
 model_features = joblib.load(os.path.join(BASE_DIR, "model_features.pkl"))
 
+
 # =====================================================
-# Clean column names
+# 🧹 Clean column names
 # =====================================================
+
 def clean_columns(df):
     df.columns = (
         df.columns
@@ -37,8 +47,9 @@ def clean_columns(df):
 
 
 # =====================================================
-# Align dataset to model features
+# 🔄 Align dataset to model features
 # =====================================================
+
 def align_features(df):
     df = clean_columns(df)
     df = df.reindex(columns=model_features, fill_value=0)
@@ -46,8 +57,9 @@ def align_features(df):
 
 
 # =====================================================
-# Predict stress using ML model
+# 🤖 Predict stress using ML model
 # =====================================================
+
 def predict_stress(df):
     X = align_features(df)
     preds = model.predict(X)
@@ -57,8 +69,9 @@ def predict_stress(df):
 
 
 # =====================================================
-# Determine stress cause (rule-based)
+# 📊 Determine stress cause (rule-based)
 # =====================================================
+
 def stress_cause(row):
     causes = []
 
@@ -81,8 +94,9 @@ def stress_cause(row):
 
 
 # =====================================================
-# Basic fertilizer advice (fallback logic)
+# 🌱 Basic fertilizer advice (fallback logic)
 # =====================================================
+
 def fertilizer_advice(row):
     advice = []
 
@@ -102,27 +116,13 @@ def fertilizer_advice(row):
 
 
 # =====================================================
-# 🤖 AI-based fertilizer recommendation (Gemini)
+# 🤖 AI-based fertilizer recommendation (Hugging Face)
 # =====================================================
-from openai import OpenAI
-import os
-
-# Create client once
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-if HF_TOKEN:
-    hf_client = OpenAI(
-        base_url="https://router.huggingface.co/v1",
-        api_key=HF_TOKEN,
-    )
-else:
-    hf_client = None
-
 
 def ai_fertilizer_advice(row, stress_level):
 
     if not hf_client:
-        return "AI Error: HF_TOKEN not found"
+        return "AI Error: HF_TOKEN not found in Streamlit Secrets"
 
     prompt = f"""
 You are an agriculture expert.
@@ -148,9 +148,7 @@ Use simple farmer-friendly English.
     try:
         completion = hf_client.chat.completions.create(
             model="moonshotai/Kimi-K2-Instruct-0905",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=400,
         )
@@ -159,4 +157,3 @@ Use simple farmer-friendly English.
 
     except Exception as e:
         return f"AI Error: {str(e)}"
-
